@@ -25,6 +25,7 @@ namespace DownloadVideoFromFileVideoID
         //private bool hasInternet = false;
         private Thread th;
         private bool keepRunning = false;
+        private bool isDownloadCompleted = true;
         private int threadSleep = 0;
         private int count = 0;
         private string oldVID = "";
@@ -32,30 +33,41 @@ namespace DownloadVideoFromFileVideoID
         private void btnStart_Click(object sender, EventArgs e)
         {
             this.SetText("Service start at :" + DateTime.Now + "!\n");
-            DownloadVideo();
-            //if (CheckInternet())
-            //{
-            //    this.keepRunning = true;
-            //    this.th = new Thread(new ThreadStart(DoWork));
-            //    th.Start();
-            //}
-            //else
-            //{
-            //    MessageBox.Show("Check Your Internet.");
-            //}
+            //DownloadVideo();
+            if (CheckInternet())
+            {
+                this.keepRunning = true;
+                this.th = new Thread(new ThreadStart(DoWork));
+                th.Start();
+            }
+            else
+            {
+                MessageBox.Show("Check Your Internet.");
+            }
         }
         public void DoWork()
         {
             this.SetText("Service start at :" + DateTime.Now + "!\n");
             while (keepRunning)
              {
+                count = count + 1;
+                this.SetText("Work " + count +" times at "+ DateTime.Now+" !");
                 string tmeInMN = "";
                 if (cboThreadSleep.InvokeRequired)
                 {
                     cboThreadSleep.Invoke(new MethodInvoker(delegate { tmeInMN = cboThreadSleep.SelectedItem.ToString(); }));
                 }
+                //tmeInMN = "2";
                 this.threadSleep = int.Parse(tmeInMN) * 60000;
-                DownloadVideo();
+                if (isDownloadCompleted)
+                {
+                    isDownloadCompleted = false;
+                    DownloadVideo();
+                }
+                else
+                {
+                    Thread.Sleep(this.threadSleep);
+                }
                 //Thread.Sleep(this.threadSleep);
                 //Thread.Sleep(900000);//15mn
                 //Thread.Sleep(1800000);
@@ -80,10 +92,10 @@ namespace DownloadVideoFromFileVideoID
         // the text property on a TextBox control.  
         delegate void StringArgReturningVoidDelegate(string text);
 
-        public async void DownloadVideo()
+        /*public async void DownloadVideo()
         {
             count = count + 1;
-            this.SetText("Work..."+DateTime.Now);
+            this.SetText("Work..." + DateTime.Now);
             var vedioID = "";
             try
             {
@@ -91,9 +103,9 @@ namespace DownloadVideoFromFileVideoID
                 {
                     var youtube = YouTube.Default;
                     var strUrl = string.Empty;
-                    //this.SetText("Running time :" + this.count + ". Video Id is ." + GetVideoId() + "\n");
+                    this.SetText("Running time :" + this.count + ". Video Id is ." + GetVideoId() + "\n");
                     vedioID = getVID();
-                    if(vedioID != this.oldVID)
+                    if (vedioID != this.oldVID)
                     {
                         this.oldVID = vedioID;
                         VideoLists.Add(vedioID);
@@ -103,13 +115,13 @@ namespace DownloadVideoFromFileVideoID
                         var isdownload = false;
                         trans_data(cmd, vedioID, channelName, status, isdownload);//Status = 2 and isDownload = 0 video Id Downloading
                     }
-                    
-                    if (vedioID !="")
+
+                    if (vedioID != "")
                     {
-                        for (int i=0;i<VideoLists.Count(); i++)
+                        for (int i = 0; i < VideoLists.Count(); i++)
                         {
                             this.count++;
-                            /*For Get VideoId and Download*/
+                            //For Get VideoId and Download
                             strUrl = "https://www.youtube.com/watch?v=" + vedioID;
                             var video = await youtube.GetVideoAsync(strUrl);
                             string myFolder = @"D:\MyResult\Downloaded\";
@@ -129,22 +141,89 @@ namespace DownloadVideoFromFileVideoID
                     else
                     {
                         VideoLists.Clear();
-                        //Thread.Sleep(this.threadSleep);
+                        Thread.Sleep(this.threadSleep);
                         DownloadVideo();
                     }
                 }
             }
             catch (Exception exp)
             {
-                this.SetText("Error Video Id:" + vedioID +" << "+exp.Message+ " >> ");
+                this.SetText("Error Video Id:" + vedioID + " << " + exp.Message + " >> ");
                 var cmd = "U";
                 var channelName = "";
                 var status = (int)DownloadVideoFromFileVideoID.Enums.VideoStautus.Error;
                 var isdownload = true;
                 trans_data(cmd, vedioID, channelName, status, isdownload);//status = 0 video Id error
-                //trans_data("U", vedioID, "", 0, true);//status = 0 video Id error
+                trans_data("U", vedioID, "", 0, true);//status = 0 video Id error
+                VideoLists.Clear();
+                Thread.Sleep(this.threadSleep);
+                DownloadVideo();
+            }
+        }*/
+
+        //New 2017-03-08
+        public async void DownloadVideo()
+        {
+            var vedioID = "";
+            try
+            {
+                using (FolderBrowserDialog fdb = new FolderBrowserDialog() { Description = "select your path." })
+                {
+                    var youtube = YouTube.Default;
+                    var strUrl = string.Empty;
+                    vedioID = getVID();
+                    if (vedioID != this.oldVID)
+                    {
+                        this.oldVID = vedioID;
+                        VideoLists.Add(vedioID);
+                        var cmd = "U";
+                        var channelName = "";
+                        var status = (int)DownloadVideoFromFileVideoID.Enums.VideoStautus.Dowloading;
+                        var isdownload = false;
+                        trans_data(cmd, vedioID, channelName, status, isdownload);//Status = 2 and isDownload = 0 video Id Downloading
+                    }
+
+                    if (vedioID != "")
+                    {
+                        for (int i = 0; i < VideoLists.Count(); i++)
+                        {
+                            this.count++;
+                            //For Get VideoId and Download
+                            strUrl = "https://www.youtube.com/watch?v=" + vedioID;
+                            var video = await youtube.GetVideoAsync(strUrl);
+                            string myFolder = @"D:\MyResult\Downloaded\";
+                            fdb.SelectedPath = myFolder;
+                            var savePath = fdb.SelectedPath + video.FullName;
+                            File.WriteAllBytes(savePath, await video.GetBytesAsync());
+                            var cmd = "U";
+                            var channelName = "";
+                            var status = (int)DownloadVideoFromFileVideoID.Enums.VideoStautus.Dowloaded;
+                            var isdownload = true;
+                            trans_data(cmd, vedioID, channelName, status, isdownload);//status = 2 and isDownload =1 Downloaded
+                            this.SetText(this.count + " - Video name : " + video.Title + " has download successfully.");
+                        }
+                        VideoLists.Clear();
+                        isDownloadCompleted = true;
+                    }
+                    else
+                    {
+                        VideoLists.Clear();
+                        isDownloadCompleted = true;
+                        Thread.Sleep(this.threadSleep);
+                    }
+                }
+            }
+            catch (Exception exp)
+            {
+                this.SetText("Error Video Id:" + vedioID + " << " + exp.Message + " >> ");
+                var cmd = "U";
+                var channelName = "";
+                var status = (int)DownloadVideoFromFileVideoID.Enums.VideoStautus.Error;
+                var isdownload = true;
+                trans_data(cmd, vedioID, channelName, status, isdownload);//status = 0 video Id error
                 VideoLists.Clear();
                 //Thread.Sleep(this.threadSleep);
+                isDownloadCompleted = true;
                 DownloadVideo();
             }
         }
